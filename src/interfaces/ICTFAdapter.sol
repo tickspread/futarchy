@@ -12,12 +12,9 @@ interface ICTFAdapter {
     /// @param amount Amount of collateral tokens to split
     /// @param outcomeCount Number of outcomes in the condition
     /// @return wrappedTokens Array of ERC20 addresses representing conditional tokens
-    function splitCollateralTokens(
-        IERC20 collateralToken,
-        bytes32 conditionId,
-        uint256 amount,
-        uint256 outcomeCount
-    ) external returns (address[] memory wrappedTokens);
+    function splitCollateralTokens(IERC20 collateralToken, bytes32 conditionId, uint256 amount, uint256 outcomeCount)
+        external
+        returns (address[] memory wrappedTokens);
 
     /// @notice Redeems conditional tokens for collateral after condition resolution
     /// @param collateralToken The original ERC20 collateral token
@@ -37,9 +34,8 @@ interface ICTFAdapter {
     /// @param conditionId The condition identifier
     /// @param outcomeCount Number of outcomes in the condition
     /// @return addresses Array of ERC20 addresses for the outcomes
-    function getWrappedTokens(
-        IERC20 collateralToken,
-        bytes32 conditionId,
-        uint256 outcomeCount
-    ) external view returns (address[] memory addresses);
+    function getWrappedTokens(IERC20 collateralToken, bytes32 conditionId, uint256 outcomeCount)
+        external
+        view
+        returns (address[] memory addresses);
 }

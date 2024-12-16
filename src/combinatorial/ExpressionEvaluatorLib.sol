@@ -24,30 +24,25 @@ library ExpressionEvaluatorLib {
     /**
      * @notice Get complexity metrics for an expression
      */
-    function getExpressionComplexity(
-        uint256[][] memory conjunctions
-    ) internal pure returns (
-        uint256 totalConjunctions,
-        uint256 maxLiterals,
-        uint256 totalLiterals,
-        uint256 estimatedGas
-    ) {
+    function getExpressionComplexity(uint256[][] memory conjunctions)
+        internal
+        pure
+        returns (uint256 totalConjunctions, uint256 maxLiterals, uint256 totalLiterals, uint256 estimatedGas)
+    {
         totalConjunctions = conjunctions.length;
         if (totalConjunctions > MAX_CONJUNCTIONS) revert ConjunctionTooLarge(totalConjunctions);
-        
+
         for (uint256 i = 0; i < conjunctions.length; i++) {
             uint256 numLiterals = conjunctions[i].length;
             if (numLiterals > MAX_LITERALS) revert ConjunctionTooLarge(numLiterals);
-            
+
             totalLiterals += numLiterals;
             if (numLiterals > maxLiterals) {
                 maxLiterals = numLiterals;
             }
         }
 
-        estimatedGas = GAS_OVERHEAD + 
-            (totalConjunctions * GAS_BASE_PER_CONJUNCTION) + 
-            (totalLiterals * GAS_PER_LITERAL);
+        estimatedGas = GAS_OVERHEAD + (totalConjunctions * GAS_BASE_PER_CONJUNCTION) + (totalLiterals * GAS_PER_LITERAL);
     }
 
     /**
@@ -109,11 +104,7 @@ library ExpressionEvaluatorLib {
         uint256 total = 0;
 
         for (uint256 i = 0; i < conjunctions.length; i++) {
-            uint256 conjunctionValue = evaluateConjunctionWithValues(
-                conjunctions[i],
-                variableIds,
-                variableValues
-            );
+            uint256 conjunctionValue = evaluateConjunctionWithValues(conjunctions[i], variableIds, variableValues);
             total += conjunctionValue;
             if (total >= SCALE) {
                 return SCALE;

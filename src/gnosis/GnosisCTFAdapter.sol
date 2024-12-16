@@ -37,82 +37,67 @@ contract GnosisCTFAdapter {
     }
 
     // Add the missing function
-    function getWrappedTokens(
-        IERC20 collateralToken,
-        bytes32 conditionId,
-        uint256 outcomeCount
-    ) external view returns (address[] memory addresses) {
+    function getWrappedTokens(IERC20 collateralToken, bytes32 conditionId, uint256 outcomeCount)
+        external
+        view
+        returns (address[] memory addresses)
+    {
         if (outcomeCount <= 1) revert InvalidOutcomeCount(outcomeCount);
-        
+
         addresses = new address[](outcomeCount);
         uint256[] memory partition = new uint256[](outcomeCount);
-        
-        for(uint256 i = 0; i < outcomeCount; i++) {
+
+        for (uint256 i = 0; i < outcomeCount; i++) {
             partition[i] = 1 << i;
-            
+
             uint256 positionId = conditionalTokens.getPositionId(
-                collateralToken,
-                conditionalTokens.getCollectionId(bytes32(0), conditionId, partition[i])
+                collateralToken, conditionalTokens.getCollectionId(bytes32(0), conditionId, partition[i])
             );
-            
+
             bytes memory tokenData = abi.encodePacked(
                 _generateTokenName(collateralToken, i, outcomeCount),
                 _generateTokenSymbol(collateralToken, i, outcomeCount),
                 hex"12"
             );
 
-            addresses[i] = address(wrapped1155Factory.getWrapped1155(
-                IERC20(address(conditionalTokens)),
-                positionId,
-                tokenData
-            ));
+            addresses[i] =
+                address(wrapped1155Factory.getWrapped1155(IERC20(address(conditionalTokens)), positionId, tokenData));
         }
 
         return addresses;
     }
 
-    function splitCollateralTokens(
-        IERC20 collateralToken,
-        bytes32 conditionId,
-        uint256 amount,
-        uint256 outcomeCount
-    ) external returns (address[] memory wrappedTokens) {
+    function splitCollateralTokens(IERC20 collateralToken, bytes32 conditionId, uint256 amount, uint256 outcomeCount)
+        external
+        returns (address[] memory wrappedTokens)
+    {
         if (outcomeCount <= 1) revert InvalidOutcomeCount(outcomeCount);
-        
+
         uint256[] memory partition = new uint256[](outcomeCount);
-        for(uint256 i = 0; i < outcomeCount; i++) {
+        for (uint256 i = 0; i < outcomeCount; i++) {
             partition[i] = 1 << i;
         }
 
         collateralToken.safeTransferFrom(msg.sender, address(this), amount);
         collateralToken.approve(address(conditionalTokens), amount);
 
-        conditionalTokens.splitPosition(
-            collateralToken,
-            bytes32(0),
-            conditionId,
-            partition,
-            amount
-        );
+        conditionalTokens.splitPosition(collateralToken, bytes32(0), conditionId, partition, amount);
 
         wrappedTokens = new address[](outcomeCount);
         for (uint256 i = 0; i < outcomeCount; i++) {
             uint256 positionId = conditionalTokens.getPositionId(
-                collateralToken,
-                conditionalTokens.getCollectionId(bytes32(0), conditionId, partition[i])
+                collateralToken, conditionalTokens.getCollectionId(bytes32(0), conditionId, partition[i])
             );
-            
+
             bytes memory tokenData = abi.encodePacked(
                 _generateTokenName(collateralToken, i, outcomeCount),
                 _generateTokenSymbol(collateralToken, i, outcomeCount),
                 hex"12"
             );
 
-            wrappedTokens[i] = address(wrapped1155Factory.requireWrapped1155(
-                IERC20(address(conditionalTokens)),
-                positionId,
-                tokenData
-            ));
+            wrappedTokens[i] = address(
+                wrapped1155Factory.requireWrapped1155(IERC20(address(conditionalTokens)), positionId, tokenData)
+            );
         }
 
         return wrappedTokens;
@@ -125,95 +110,78 @@ contract GnosisCTFAdapter {
         uint256 outcomeCount
     ) external returns (uint256 payoutAmount) {
         uint256 payoutDenominator = conditionalTokens.payoutDenominator(conditionId);
-        if(payoutDenominator == 0) revert ConditionNotResolved();
+        if (payoutDenominator == 0) revert ConditionNotResolved();
 
         uint256[] memory partition = new uint256[](outcomeCount);
-        for(uint256 i = 0; i < outcomeCount; i++) {
+        for (uint256 i = 0; i < outcomeCount; i++) {
             partition[i] = 1 << i;
 
-            if(amounts[i] > 0) {
+            if (amounts[i] > 0) {
                 uint256 positionId = conditionalTokens.getPositionId(
-                    collateralToken,
-                    conditionalTokens.getCollectionId(bytes32(0), conditionId, partition[i])
+                    collateralToken, conditionalTokens.getCollectionId(bytes32(0), conditionId, partition[i])
                 );
 
                 try wrapped1155Factory.unwrap(
-                    IERC20(address(conditionalTokens)),
-                    positionId,
-                    amounts[i],
-                    address(this),
-                    ""
-                ) {} catch {
+                    IERC20(address(conditionalTokens)), positionId, amounts[i], address(this), ""
+                ) { } catch {
                     revert WrappingFailed();
                 }
             }
         }
 
         uint256[] memory indexSets = new uint256[](outcomeCount);
-        for(uint256 i = 0; i < outcomeCount; i++) {
+        for (uint256 i = 0; i < outcomeCount; i++) {
             indexSets[i] = partition[i];
         }
-        
-        try conditionalTokens.redeemPositions(
-            collateralToken,
-            bytes32(0),
-            conditionId,
-            indexSets
-        ) {} catch {
+
+        try conditionalTokens.redeemPositions(collateralToken, bytes32(0), conditionId, indexSets) { }
+        catch {
             revert RedemptionFailed();
         }
 
         payoutAmount = collateralToken.balanceOf(address(this));
-        if(payoutAmount > 0) {
+        if (payoutAmount > 0) {
             collateralToken.safeTransfer(msg.sender, payoutAmount);
         }
 
         return payoutAmount;
     }
 
-    function _generateTokenName(
-        IERC20 collateralToken,
-        uint256 outcomeIndex,
-        uint256 totalOutcomes
-    ) internal view returns (bytes32) {
+    function _generateTokenName(IERC20 collateralToken, uint256 outcomeIndex, uint256 totalOutcomes)
+        internal
+        view
+        returns (bytes32)
+    {
         string memory baseToken = IERC20Extended(address(collateralToken)).name();
-        
-        if(totalOutcomes == 2) {
-            return outcomeIndex == 1 ? 
-                bytes32(bytes(string.concat(baseToken, " Yes Position"))) : 
-                bytes32(bytes(string.concat(baseToken, " No Position")));
+
+        if (totalOutcomes == 2) {
+            return outcomeIndex == 1
+                ? bytes32(bytes(string.concat(baseToken, " Yes Position")))
+                : bytes32(bytes(string.concat(baseToken, " No Position")));
         }
-        
+
         bytes memory letter = new bytes(1);
         letter[0] = bytes1(uint8(65 + outcomeIndex));
-        
-        return bytes32(bytes(string.concat(
-            baseToken,
-            " Outcome ",
-            string(letter)
-        )));
+
+        return bytes32(bytes(string.concat(baseToken, " Outcome ", string(letter))));
     }
 
-    function _generateTokenSymbol(
-        IERC20 collateralToken,
-        uint256 outcomeIndex,
-        uint256 totalOutcomes
-    ) internal view returns (bytes32) {
+    function _generateTokenSymbol(IERC20 collateralToken, uint256 outcomeIndex, uint256 totalOutcomes)
+        internal
+        view
+        returns (bytes32)
+    {
         string memory baseSymbol = IERC20Extended(address(collateralToken)).symbol();
-        
-        if(totalOutcomes == 2) {
-            return outcomeIndex == 1 ? 
-                bytes32(bytes(string.concat(baseSymbol, "-Y"))) : 
-                bytes32(bytes(string.concat(baseSymbol, "-N")));
+
+        if (totalOutcomes == 2) {
+            return outcomeIndex == 1
+                ? bytes32(bytes(string.concat(baseSymbol, "-Y")))
+                : bytes32(bytes(string.concat(baseSymbol, "-N")));
         }
-        
+
         bytes memory letter = new bytes(1);
         letter[0] = bytes1(uint8(65 + outcomeIndex));
-        
-        return bytes32(bytes(string.concat(
-            baseSymbol,
-            "-",
-            string(letter)
-        )));
+
+        return bytes32(bytes(string.concat(baseSymbol, "-", string(letter))));
     }
 }

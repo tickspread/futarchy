@@ -13,7 +13,7 @@ contract GnosisCTFAdapterTest is Test {
     MockConditionalTokens public conditionalTokens;
     MockWrapped1155Factory public wrapped1155Factory;
     MockERC20 public collateralToken;
-    
+
     address public owner;
     address public user;
 
@@ -27,10 +27,7 @@ contract GnosisCTFAdapterTest is Test {
         wrapped1155Factory = new MockWrapped1155Factory();
 
         // Deploy adapter
-        adapter = new GnosisCTFAdapter(
-            address(conditionalTokens),
-            address(wrapped1155Factory)
-        );
+        adapter = new GnosisCTFAdapter(address(conditionalTokens), address(wrapped1155Factory));
 
         // Setup test tokens
         vm.startPrank(user);
@@ -41,15 +38,15 @@ contract GnosisCTFAdapterTest is Test {
 
     function testSplitTokensBinaryOutcome() public {
         vm.startPrank(user);
-        
+
         uint256 amount = 100 ether;
         bytes32 questionId = keccak256("Did it rain today?");
         bytes32 conditionId = conditionalTokens.getConditionId(owner, questionId, 2);
-        
+
         conditionalTokens.prepareCondition(owner, questionId, 2);
-        
+
         address[] memory wrappedTokens = adapter.splitCollateralTokens(
-            IERC20(collateralToken),  // Cast to IERC20
+            IERC20(collateralToken), // Cast to IERC20
             conditionId,
             amount,
             2
@@ -61,43 +58,36 @@ contract GnosisCTFAdapterTest is Test {
             amount,
             "Conditional tokens should receive collateral"
         );
-        
+
         vm.stopPrank();
     }
 
     function testRevertInvalidOutcomeCount() public {
         vm.startPrank(user);
-        
+
         bytes32 questionId = keccak256("Did it rain today?");
         bytes32 conditionId = conditionalTokens.getConditionId(owner, questionId, 1);
 
         // Change this line to properly expect the custom error with parameter
-        vm.expectRevert(
-            abi.encodeWithSelector(GnosisCTFAdapter.InvalidOutcomeCount.selector, 1)
-        );
-        
-        adapter.splitCollateralTokens(
-            IERC20(collateralToken),
-            conditionId,
-            100 ether,
-            1
-        );
-        
+        vm.expectRevert(abi.encodeWithSelector(GnosisCTFAdapter.InvalidOutcomeCount.selector, 1));
+
+        adapter.splitCollateralTokens(IERC20(collateralToken), conditionId, 100 ether, 1);
+
         vm.stopPrank();
     }
 
     function testRedeemPositions() public {
         vm.startPrank(user);
-        
+
         uint256 amount = 100 ether;
         bytes32 questionId = keccak256("Did it rain today?");
         bytes32 conditionId = conditionalTokens.getConditionId(owner, questionId, 2);
-        
+
         conditionalTokens.prepareCondition(owner, questionId, 2);
-        
+
         // Split tokens
         adapter.splitCollateralTokens(
-            IERC20(collateralToken),  // Cast to IERC20
+            IERC20(collateralToken), // Cast to IERC20
             conditionId,
             amount,
             2
@@ -110,34 +100,29 @@ contract GnosisCTFAdapterTest is Test {
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = amount;
         amounts[1] = amount;
-        
+
         uint256 payout = adapter.redeemPositions(
-            IERC20(collateralToken),  // Cast to IERC20
+            IERC20(collateralToken), // Cast to IERC20
             conditionId,
             amounts,
             2
         );
 
         assertGt(payout, 0, "Should receive payout");
-        
+
         vm.stopPrank();
     }
 
-function testMultipleOutcomes() public {
+    function testMultipleOutcomes() public {
         vm.startPrank(user);
-        
+
         uint256 amount = 100 ether;
         bytes32 questionId = keccak256("What will be the weather?"); // Sunny, Rainy, Cloudy
         bytes32 conditionId = conditionalTokens.getConditionId(owner, questionId, 3);
-        
+
         conditionalTokens.prepareCondition(owner, questionId, 3);
-        
-        address[] memory wrappedTokens = adapter.splitCollateralTokens(
-            IERC20(collateralToken),
-            conditionId,
-            amount,
-            3
-        );
+
+        address[] memory wrappedTokens = adapter.splitCollateralTokens(IERC20(collateralToken), conditionId, amount, 3);
 
         assertEq(wrappedTokens.length, 3, "Should return three token addresses");
         assertEq(wrappedTokens[0] != wrappedTokens[1], true, "Tokens should be different");
@@ -146,52 +131,38 @@ function testMultipleOutcomes() public {
             amount,
             "Conditional tokens should receive collateral"
         );
-        
+
         vm.stopPrank();
     }
 
     function testRevertConditionNotResolved() public {
         vm.startPrank(user);
-        
+
         uint256 amount = 100 ether;
         bytes32 questionId = keccak256("Did it rain today?");
         bytes32 conditionId = conditionalTokens.getConditionId(owner, questionId, 2);
-        
+
         conditionalTokens.prepareCondition(owner, questionId, 2);
-        
+
         // Split tokens
-        adapter.splitCollateralTokens(
-            IERC20(collateralToken),
-            conditionId,
-            amount,
-            2
-        );
+        adapter.splitCollateralTokens(IERC20(collateralToken), conditionId, amount, 2);
 
         // Try to redeem without resolution
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = amount;
         amounts[1] = amount;
-        
+
         vm.expectRevert(GnosisCTFAdapter.ConditionNotResolved.selector);
-        adapter.redeemPositions(
-            IERC20(collateralToken),
-            conditionId,
-            amounts,
-            2
-        );
-        
+        adapter.redeemPositions(IERC20(collateralToken), conditionId, amounts, 2);
+
         vm.stopPrank();
     }
 
     function testGetWrappedTokens() public view {
         bytes32 questionId = keccak256("Did it rain today?");
         bytes32 conditionId = conditionalTokens.getConditionId(owner, questionId, 2);
-        
-        address[] memory wrappedTokens = adapter.getWrappedTokens(
-            IERC20(collateralToken),
-            conditionId,
-            2
-        );
+
+        address[] memory wrappedTokens = adapter.getWrappedTokens(IERC20(collateralToken), conditionId, 2);
 
         assertEq(wrappedTokens.length, 2, "Should return two addresses");
         assertEq(wrappedTokens[0] != wrappedTokens[1], true, "Addresses should be different");
@@ -199,19 +170,15 @@ function testMultipleOutcomes() public {
 
     function testSplitMaxOutcomes() public {
         vm.startPrank(user);
-        
+
         uint256 amount = 100 ether;
         bytes32 questionId = keccak256("Multiple choice question");
         bytes32 conditionId = conditionalTokens.getConditionId(owner, questionId, 256);
-        
+
         conditionalTokens.prepareCondition(owner, questionId, 256);
-        
-        address[] memory wrappedTokens = adapter.splitCollateralTokens(
-            IERC20(collateralToken),
-            conditionId,
-            amount,
-            256
-        );
+
+        address[] memory wrappedTokens =
+            adapter.splitCollateralTokens(IERC20(collateralToken), conditionId, amount, 256);
 
         assertEq(wrappedTokens.length, 256, "Should handle maximum outcomes");
         vm.stopPrank();
@@ -219,10 +186,10 @@ function testMultipleOutcomes() public {
 
     function testRedeemZeroAmounts() public {
         vm.startPrank(user);
-        
+
         bytes32 questionId = keccak256("Test zero amounts");
         bytes32 conditionId = conditionalTokens.getConditionId(owner, questionId, 2);
-        
+
         conditionalTokens.prepareCondition(owner, questionId, 2);
         conditionalTokens.setPayoutDenominator(conditionId, 2);
 
@@ -230,13 +197,8 @@ function testMultipleOutcomes() public {
         // Both amounts are 0
         amounts[0] = 0;
         amounts[1] = 0;
-        
-        uint256 payout = adapter.redeemPositions(
-            IERC20(collateralToken),
-            conditionId,
-            amounts,
-            2
-        );
+
+        uint256 payout = adapter.redeemPositions(IERC20(collateralToken), conditionId, amounts, 2);
 
         assertEq(payout, 0, "Should handle zero amounts");
         vm.stopPrank();

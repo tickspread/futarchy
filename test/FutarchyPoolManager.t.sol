@@ -15,11 +15,11 @@ contract FutarchyPoolManagerTest is Test {
     MockBalancerPoolWrapper public balancerWrapper;
     MockERC20 public outcomeToken;
     MockERC20 public moneyToken;
-    
+
     address public owner;
     address public user;
 
-// test/FutarchyPoolManager.t.sol
+    // test/FutarchyPoolManager.t.sol
     function setUp() public {
         owner = address(this);
         user = makeAddr("user");
@@ -27,16 +27,13 @@ contract FutarchyPoolManagerTest is Test {
         // Deploy tokens
         outcomeToken = new MockERC20("Outcome Token", "OUT");
         moneyToken = new MockERC20("Money Token", "MON");
-        
+
         // Deploy mock conditional tokens and wrapper
         MockConditionalTokens conditionalTokens = new MockConditionalTokens();
         MockWrapped1155Factory wrappedFactory = new MockWrapped1155Factory();
-        
+
         // Deploy adapters/wrappers
-        ctfAdapter = new GnosisCTFAdapter(
-            address(conditionalTokens),
-            address(wrappedFactory)
-        );
+        ctfAdapter = new GnosisCTFAdapter(address(conditionalTokens), address(wrappedFactory));
         balancerWrapper = new MockBalancerPoolWrapper();
 
         // Deploy manager
@@ -45,10 +42,10 @@ contract FutarchyPoolManagerTest is Test {
             address(balancerWrapper),
             address(outcomeToken),
             address(moneyToken),
-            false,        // _useEnhancedSecurity
-            owner         // use owner for admin
+            false, // _useEnhancedSecurity
+            owner // use owner for admin
         );
-        
+
         // Setup initial tokens
         vm.startPrank(user);
         outcomeToken.mint(user, 1000 ether);
@@ -60,35 +57,25 @@ contract FutarchyPoolManagerTest is Test {
 
     function testCreateBasePool() public {
         vm.startPrank(user);
-        
+
         uint256 outcomeAmount = 100 ether;
         uint256 moneyAmount = 100 ether;
         uint256 weight = 500000; // 50-50
-        
-        address pool = manager.createBasePool(
-            outcomeAmount,
-            moneyAmount,
-            weight
-        );
+
+        address pool = manager.createBasePool(outcomeAmount, moneyAmount, weight);
 
         assertEq(pool != address(0), true, "Pool should be created");
         assertEq(
-            outcomeToken.balanceOf(address(balancerWrapper)),
-            outcomeAmount,
-            "Wrapper should receive outcome tokens"
+            outcomeToken.balanceOf(address(balancerWrapper)), outcomeAmount, "Wrapper should receive outcome tokens"
         );
-        assertEq(
-            moneyToken.balanceOf(address(balancerWrapper)),
-            moneyAmount,
-            "Wrapper should receive money tokens"
-        );
-        
+        assertEq(moneyToken.balanceOf(address(balancerWrapper)), moneyAmount, "Wrapper should receive money tokens");
+
         vm.stopPrank();
     }
 
     function testSplitOnCondition() public {
         vm.startPrank(user);
-        
+
         // First create base pool
         uint256 outcomeAmount = 100 ether;
         uint256 moneyAmount = 100 ether;
@@ -97,21 +84,18 @@ contract FutarchyPoolManagerTest is Test {
         // Create condition
         bytes32 conditionId = bytes32(uint256(1)); // Mock condition ID
         uint256 baseAmount = 80 ether; // 80% of liquidity
-        
-        (address yesPool, address noPool) = manager.splitOnCondition(
-            conditionId,
-            baseAmount
-        );
+
+        (address yesPool, address noPool) = manager.splitOnCondition(conditionId, baseAmount);
 
         assertEq(yesPool != address(0), true, "YES pool should be created");
         assertEq(noPool != address(0), true, "NO pool should be created");
-        
+
         vm.stopPrank();
     }
 
     function testRevertSplitTwice() public {
         vm.startPrank(user);
-        
+
         // Create base pool
         manager.createBasePool(100 ether, 100 ether, 500000);
 
@@ -122,7 +106,7 @@ contract FutarchyPoolManagerTest is Test {
         // Try to split again with same condition
         vm.expectRevert(FutarchyPoolManager.ConditionAlreadyActive.selector);
         manager.splitOnCondition(conditionId, 80 ether);
-        
+
         vm.stopPrank();
     }
 

@@ -1,16 +1,11 @@
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
 interface IProposalManager {
-    function getActiveProposal() external view returns (
-        address proposer,
-        uint256 nftId,
-        bool isEmergency,
-        uint256 submitTime,
-        bool isCritical,
-        bool executed
-    );
+    function getActiveProposal()
+        external
+        view
+        returns (address proposer, uint256 nftId, bool isEmergency, uint256 submitTime, bool isCritical, bool executed);
 }
 
 interface IAuctionManager {
@@ -37,11 +32,9 @@ interface IOracle {
 }
 
 interface IFAOGovernor {
-    function executeProposal(
-        address[] calldata targets,
-        uint256[] calldata values,
-        bytes[] calldata calldatas
-    ) external returns (bool);
+    function executeProposal(address[] calldata targets, uint256[] calldata values, bytes[] calldata calldatas)
+        external
+        returns (bool);
 }
 
 interface IBalancerPool {
@@ -63,17 +56,9 @@ interface IBalancerVault {
         bool toInternalBalance;
     }
 
-    function joinPool(
-        bytes32 poolId,
-        address sender,
-        address recipient,
-        JoinPoolRequest memory request
-    ) external payable;
+    function joinPool(bytes32 poolId, address sender, address recipient, JoinPoolRequest memory request)
+        external
+        payable;
 
-    function exitPool(
-        bytes32 poolId,
-        address sender,
-        address recipient,
-        ExitPoolRequest memory request
-    ) external;
+    function exitPool(bytes32 poolId, address sender, address recipient, ExitPoolRequest memory request) external;
 }

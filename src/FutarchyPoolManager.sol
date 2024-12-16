@@ -7,7 +7,6 @@ import "./interfaces/ICTFAdapter.sol";
 import "./interfaces/IBalancerPoolWrapper.sol";
 
 contract FutarchyPoolManager {
-    using SafeERC20 for IERC20;
 
     ICTFAdapter public immutable ctfAdapter;
     IBalancerPoolWrapper public immutable balancerWrapper;
@@ -68,35 +67,27 @@ contract FutarchyPoolManager {
         admin = _admin;
     }
 
-    function addAllowedSplit(
-        address baseToken,
-        address splitToken1,
-        address splitToken2
-    ) external onlyAdmin {
+    function addAllowedSplit(address baseToken, address splitToken1, address splitToken2) external onlyAdmin {
         allowedSplits[keccak256(abi.encodePacked(baseToken, splitToken1, splitToken2))] = true;
         emit SplitAllowed(baseToken, splitToken1, splitToken2);
     }
 
-    function createBasePool(
-        uint256 outcomeAmount,
-        uint256 moneyAmount,
-        uint256 weight
-    ) external returns (address) {
+    function createBasePool(uint256 outcomeAmount, uint256 moneyAmount, uint256 weight) external returns (address) {
         outcomeToken.safeTransferFrom(msg.sender, address(this), outcomeAmount);
         moneyToken.safeTransferFrom(msg.sender, address(this), moneyAmount);
 
-        outcomeToken.approve(address(balancerWrapper), outcomeAmount);
-        moneyToken.approve(address(balancerWrapper), moneyAmount);
+        outcomeToken.safeApprove(address(balancerWrapper), outcomeAmount);
+        moneyToken.safeApprove(address(balancerWrapper), moneyAmount);
 
         basePool = balancerWrapper.createPool(address(outcomeToken), address(moneyToken), weight);
         balancerWrapper.addLiquidity(basePool, outcomeAmount, moneyAmount);
         return basePool;
     }
 
-    function splitOnCondition(
-        bytes32 conditionId,
-        uint256 baseAmount
-    ) external returns (address yesPool, address noPool) {
+    function splitOnCondition(bytes32 conditionId, uint256 baseAmount)
+        external
+        returns (address yesPool, address noPool)
+    {
         if (conditionPools[conditionId].isActive) revert ConditionAlreadyActive();
 
         uint256 beforeOutBase = outcomeToken.balanceOf(address(this));
@@ -156,7 +147,7 @@ contract FutarchyPoolManager {
         IERC20(ct.moneyYesToken).approve(address(ctfAdapter), monAmt);
 
         uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 0; 
+        amounts[0] = 0;
         amounts[1] = outAmt;
         ctfAdapter.redeemPositions(outcomeToken, conditionId, amounts, 2);
 
@@ -191,11 +182,10 @@ contract FutarchyPoolManager {
 
     // ------------------ Internal Helper Functions ------------------
 
-    function _doSplit(
-        bytes32 conditionId,
-        uint256 outAmt,
-        uint256 monAmt
-    ) internal returns (address outYes, address outNo, address monYes, address monNo) {
+    function _doSplit(bytes32 conditionId, uint256 outAmt, uint256 monAmt)
+        internal
+        returns (address outYes, address outNo, address monYes, address monNo)
+    {
         outcomeToken.approve(address(ctfAdapter), outAmt);
         moneyToken.approve(address(ctfAdapter), monAmt);
 
@@ -212,13 +202,9 @@ contract FutarchyPoolManager {
         conditionPools[conditionId] = ConditionalPools(yesPool, noPool, true);
     }
 
-    function _storeConditionTokens(
-        bytes32 conditionId,
-        address outYes,
-        address outNo,
-        address monYes,
-        address monNo
-    ) internal {
+    function _storeConditionTokens(bytes32 conditionId, address outYes, address outNo, address monYes, address monNo)
+        internal
+    {
         ConditionTokens storage ct = conditionTokens[conditionId];
         ct.outcomeYesToken = outYes;
         ct.outcomeNoToken = outNo;
@@ -233,12 +219,10 @@ contract FutarchyPoolManager {
     // Verification functions
 
     // On splitting: baseDelta = yesDelta = noDelta
-    function _verifySplitDimension(
-        uint256 baseBefore,
-        uint256 baseAfter,
-        uint256 yesAfter,
-        uint256 noAfter
-    ) internal pure {
+    function _verifySplitDimension(uint256 baseBefore, uint256 baseAfter, uint256 yesAfter, uint256 noAfter)
+        internal
+        pure
+    {
         uint256 baseDelta = baseBefore > baseAfter ? baseBefore - baseAfter : 0;
         uint256 yesDelta = yesAfter;
         uint256 noDelta = noAfter;

@@ -20,20 +20,12 @@ interface IBalancerVault {
         bool toInternalBalance;
     }
 
-    function joinPool(
-        bytes32 poolId,
-        address sender,
-        address recipient,
-        JoinPoolRequest memory request
-    ) external payable;
+    function joinPool(bytes32 poolId, address sender, address recipient, JoinPoolRequest memory request)
+        external
+        payable;
 
-    function exitPool(
-        bytes32 poolId,
-        address sender,
-        address recipient,
-        ExitPoolRequest memory request
-    ) external;
-    
+    function exitPool(bytes32 poolId, address sender, address recipient, ExitPoolRequest memory request) external;
+
     function createPool(
         bytes32 poolId,
         address[] memory tokens,
@@ -52,13 +44,9 @@ contract BalancerPoolWrapper {
         vault = IBalancerVault(_vault);
     }
 
-    function createPool(
-        address tokenA,
-        address tokenB,
-        uint256 weight
-    ) external returns (address pool) {
+    function createPool(address tokenA, address tokenB, uint256 weight) external returns (address pool) {
         require(weight <= 1000000, "Weight must be <= 100%"); // 1000000 = 100%
-        
+
         // Setup pool parameters
         address[] memory tokens = new address[](2);
         tokens[0] = tokenA;
@@ -73,12 +61,7 @@ contract BalancerPoolWrapper {
         assetManagers[1] = address(0);
 
         // Create unique poolId
-        bytes32 poolId = keccak256(abi.encodePacked(
-            block.timestamp,
-            tokenA,
-            tokenB,
-            msg.sender
-        ));
+        bytes32 poolId = keccak256(abi.encodePacked(block.timestamp, tokenA, tokenB, msg.sender));
 
         // Create pool through Balancer
         pool = vault.createPool(
@@ -88,21 +71,17 @@ contract BalancerPoolWrapper {
             assetManagers,
             3000000000000000 // 0.3% swap fee
         );
-        
+
         return pool;
     }
 
-    function addLiquidity(
-        address pool,
-        uint256 amountA,
-        uint256 amountB
-    ) external returns (uint256 lpAmount) {
+    function addLiquidity(address pool, uint256 amountA, uint256 amountB) external returns (uint256 lpAmount) {
         // Get poolId from pool address
         bytes32 poolId; // Need to implement getting poolId from pool address
-        
+
         address[] memory assets = new address[](2);
         uint256[] memory maxAmountsIn = new uint256[](2);
-        
+
         // Join pool with exact amounts
         vault.joinPool(
             poolId,
@@ -120,10 +99,7 @@ contract BalancerPoolWrapper {
         return lpAmount;
     }
 
-    function removeLiquidity(
-        address pool,
-        uint256 lpAmount
-    ) external returns (uint256 amountA, uint256 amountB) {
+    function removeLiquidity(address pool, uint256 lpAmount) external returns (uint256 amountA, uint256 amountB) {
         // Get poolId from pool address
         bytes32 poolId; // Need to implement getting poolId from pool address
 

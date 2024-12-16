@@ -17,11 +17,11 @@ contract FaoGovernor is Ownable, ReentrancyGuard {
     ProposalManager public immutable proposalManager;
     PoolManager public immutable poolManager;
     FaoOracleSafe public immutable oracle;
-    
+
     // Protocol addresses
     address public immutable treasury;
     address public multisig;
-    
+
     // Events for contract setup and admin changes
     event ContractsDeployed(
         address indexed faoToken,
@@ -31,7 +31,7 @@ contract FaoGovernor is Ownable, ReentrancyGuard {
         address oracle
     );
     event MultisigUpdated(address indexed oldMultisig, address indexed newMultisig);
-    
+
     // Detailed proposal execution events
     event ProposalExecutionStarted(bytes32 indexed proposalHash, uint256 actionsCount);
     event ProposalActionExecuted(
@@ -43,17 +43,14 @@ contract FaoGovernor is Ownable, ReentrancyGuard {
         bool success
     );
     event ProposalExecutionCompleted(
-        bytes32 indexed proposalHash,
-        bool allActionsSucceeded,
-        uint256 successCount,
-        uint256 failureCount
+        bytes32 indexed proposalHash, bool allActionsSucceeded, uint256 successCount, uint256 failureCount
     );
-    
+
     modifier onlyMultisig() {
         require(msg.sender == multisig, "Not multisig");
         _;
     }
-    
+
     constructor(
         address _faoToken,
         address _treasury,
@@ -68,10 +65,10 @@ contract FaoGovernor is Ownable, ReentrancyGuard {
         require(_balancerVault != address(0), "Zero address");
         require(_proposalNFT != address(0), "Zero address");
         require(_weth != address(0), "Zero address");
-        
+
         treasury = _treasury;
         multisig = _multisig;
-        
+
         // Deploy core contracts
         faoToken = FAOToken(_faoToken);
         auctionManager = new DualAuctionManager(address(faoToken), _proposalNFT, address(this));
@@ -82,85 +79,70 @@ contract FaoGovernor is Ownable, ReentrancyGuard {
             address(poolManager),
             address(oracle),
             _multisig,
-            address(this)  // Pass governor address
+            address(this) // Pass governor address
         );
-        
+
         // Set up permissions
         faoToken.setProposer(address(proposalManager));
-        
+
         emit ContractsDeployed(
-            address(faoToken),
-            address(auctionManager),
-            address(proposalManager),
-            address(poolManager),
-            address(oracle)
+            address(faoToken), address(auctionManager), address(proposalManager), address(poolManager), address(oracle)
         );
     }
-    
+
     // Execute proposal actions, continue on failures
-    function executeProposal(
-        address[] calldata targets,
-        uint256[] calldata values,
-        bytes[] calldata calldatas
-    ) external returns (bool) {
+    function executeProposal(address[] calldata targets, uint256[] calldata values, bytes[] calldata calldatas)
+        external
+        returns (bool)
+    {
         require(msg.sender == address(proposalManager), "Not proposal manager");
-        
+
         bytes32 proposalHash = keccak256(abi.encode(targets, values, calldatas));
         emit ProposalExecutionStarted(proposalHash, targets.length);
-        
+
         uint256 successCount = 0;
         uint256 failureCount = 0;
-        
+
         for (uint256 i = 0; i < targets.length; i++) {
             // Execute action and capture result
-            (bool success,) = targets[i].call{value: values[i]}(calldatas[i]);
-            
+            (bool success,) = targets[i].call{ value: values[i] }(calldatas[i]);
+
             // Record result but continue regardless of success/failure
             if (success) {
                 successCount++;
             } else {
                 failureCount++;
             }
-            
-            emit ProposalActionExecuted(
-                proposalHash,
-                i,
-                targets[i],
-                values[i],
-                calldatas[i],
-                success
-            );
+
+            emit ProposalActionExecuted(proposalHash, i, targets[i], values[i], calldatas[i], success);
         }
-        
+
         bool allSucceeded = failureCount == 0;
         emit ProposalExecutionCompleted(proposalHash, allSucceeded, successCount, failureCount);
-        
+
         // Return success status but proposal is considered "executed" either way
         return allSucceeded;
     }
-    
+
     function updateMultisig(address newMultisig) external onlyMultisig {
         require(newMultisig != address(0), "Zero address");
         emit MultisigUpdated(multisig, newMultisig);
         multisig = newMultisig;
     }
-    
+
     // View functions with corrected return values
-    function getActiveProposal() external view returns (
-        address proposer,
-        uint256 nftId,
-        bool isEmergency,
-        uint256 submitTime,
-        bool isCritical,
-        bool executed
-    ) {
+    function getActiveProposal()
+        external
+        view
+        returns (address proposer, uint256 nftId, bool isEmergency, uint256 submitTime, bool isCritical, bool executed)
+    {
         return proposalManager.getActiveProposal();
     }
-    
+
     function getCurrentAuctionPrice() external view returns (uint256) {
         return auctionManager.getCurrentPrice();
     }
-    
+
     // Allow receiving ETH
-    receive() external payable {}
+    receive() external payable { }
 }
